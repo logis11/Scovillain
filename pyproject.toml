@@ -1,0 +1,10 @@
+[project]
+name = "scovillain"
+version = "0.0.1"
+description = "A frontier-first falsification oracle for binary vulnerability hunting"
+requires-python = ">=3.10"
+dependencies = ["networkx>=3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:anyio -p no:cacheprovider"
