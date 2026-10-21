@@ -75,6 +75,13 @@ class Answer:
     evidence: Evidence
     source: int = 0
     sink: int = 0
+    # -- build anchor (added 2026-10-17 after a measured miss) ---------------
+    # A disposition that does not name its build cannot be re-tested when the
+    # binary changes: the lab capped an axis on one build, the vendor reworked
+    # that exact function in the next LCU, and nothing could tell. An Answer is
+    # about ONE image, so it carries that image's identity.
+    binary_hash: str = ""            # CV GUID+age of the image this was derived on
+    build: str = ""                  # human tag, e.g. 'mrxsmb-9711'
 
     # -- the one invariant the whole project defends -------------------------
     @property
@@ -95,6 +102,11 @@ class Answer:
                 "REFUTED_MODULO with empty frontier; that is a REFUTED."
             )
 
+    @property
+    def anchored(self) -> bool:
+        """False == this answer cannot be re-tested against a future build."""
+        return bool(self.binary_hash)
+
     def summary(self) -> str:
         v = self.verdict.value
         if self.verdict is Verdict.REFUTED_MODULO:
@@ -106,19 +118,22 @@ class Answer:
 
 # Convenience constructors -------------------------------------------------
 
-def refuted(cut: str, source: int = 0, sink: int = 0) -> Answer:
-    return Answer(Verdict.REFUTED, Evidence(cut=cut), source, sink)
+def refuted(cut: str, source: int = 0, sink: int = 0, **anchor) -> Answer:
+    return Answer(Verdict.REFUTED, Evidence(cut=cut), source, sink, **anchor)
 
 
-def refuted_modulo(frontier: list[FrontierSite], source: int = 0, sink: int = 0) -> Answer:
-    return Answer(Verdict.REFUTED_MODULO, Evidence(frontier=frontier), source, sink)
+def refuted_modulo(frontier: list[FrontierSite], source: int = 0, sink: int = 0,
+                   **anchor) -> Answer:
+    return Answer(Verdict.REFUTED_MODULO, Evidence(frontier=frontier), source, sink,
+                  **anchor)
 
 
 def not_refuted(path: tuple[int, ...] = (), frontier: list[FrontierSite] | None = None,
-                source: int = 0, sink: int = 0) -> Answer:
+                source: int = 0, sink: int = 0, **anchor) -> Answer:
     return Answer(Verdict.NOT_REFUTED,
-                  Evidence(path=tuple(path), frontier=frontier or []), source, sink)
+                  Evidence(path=tuple(path), frontier=frontier or []), source, sink,
+                  **anchor)
 
 
-def unknown(reason: str, source: int = 0, sink: int = 0) -> Answer:
-    return Answer(Verdict.UNKNOWN, Evidence(cut=reason), source, sink)
+def unknown(reason: str, source: int = 0, sink: int = 0, **anchor) -> Answer:
+    return Answer(Verdict.UNKNOWN, Evidence(cut=reason), source, sink, **anchor)

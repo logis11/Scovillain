@@ -29,16 +29,17 @@ def reachable(store: NetworkxStore, source: int, sink: int) -> Answer:
         return unknown(f"sink function {sink_f:#x} not in graph", source, sink)
 
     fr = enumerate_frontier(store, source, sink)
+    stamp = dict(binary_hash=store.module.binary_hash, build=store.module.build)
 
     if fr.has_known_path:
         return not_refuted(path=fr.known_path, frontier=fr.sites,
-                           source=source, sink=sink)
+                           source=source, sink=sink, **stamp)
 
     if fr.empty:
         return refuted(
             cut=(f"no path over known call edges from {source_f:#x} to "
                  f"{sink_f:#x}; every edge-loss site reachable from the source "
                  f"is provably sink-irrelevant (frontier empty)"),
-            source=source, sink=sink)
+            source=source, sink=sink, **stamp)
 
-    return refuted_modulo(frontier=fr.sites, source=source, sink=sink)
+    return refuted_modulo(frontier=fr.sites, source=source, sink=sink, **stamp)

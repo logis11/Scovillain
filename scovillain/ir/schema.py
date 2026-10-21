@@ -2,7 +2,8 @@
 
 This is the keystone (DESIGN.md §4). Every frontend (IDA-MCP, angr, Ghidra)
 emits *this* and nothing downstream imports a frontend. The IR is deliberately
-frontend-agnostic and standalone-general (DECISION.md §9 = standalone-first).
+frontend-agnostic and standalone-general (DECISION.md §9, resolved 2026-10-17 =
+standalone-first; captive use is a thin adapter over `query.reach`).
 
 The one non-obvious thing this schema does, and the reason the whole project
 exists: it gives **edge-loss sources** first-class representation (`EdgeLossSite`),
@@ -155,6 +156,8 @@ class Edge:
 class Module:
     """One binary's IR. A frontend fills this; the graph builder consumes it."""
     binary_hash: str = ""
+    build: str = ""                 # human tag of the exact build (e.g. 'mrxsmb-9711').
+                                    #   binary_hash is the identity; this is for reports.
     arch: str = ""
     base: int = 0
     nodes: dict[int, Node] = field(default_factory=dict)

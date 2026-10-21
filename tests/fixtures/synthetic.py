@@ -123,3 +123,47 @@ def provably_irrelevant_loss() -> tuple[Module, int, int]:
         known_targets=(harmless,), detail="registers a harmless callback",
     ))
     return mod, A, SINK
+
+
+# --------------------------------------------------------------------------
+# 5. Paired-operation population (query/pairing.py), modelled on the measured
+#    ahcache shape: a 4-member population where 3 are symmetric and 1 acquires
+#    twice and never releases directly.
+# --------------------------------------------------------------------------
+
+def pairing_population(*, odd_member_escapes: bool = True,
+                       with_delegate: bool = False,
+                       odd_callerless: bool = False) -> tuple[Module, int, int]:
+    """Returns (module, acquire, release).
+
+    Members: three holders that call release directly, plus `OddHolder` which
+    acquires TWICE and never releases. If `odd_member_escapes`, OddHolder also
+    hands a code pointer to a registrar we do not model — so a release *could*
+    happen in that callback and the honest answer is UNPAIRED_MODULO, never
+    'proven'. With `with_delegate`, OddHolder instead calls a helper that
+    releases, which is the ahcache case: pairing delegated, counts mismatched.
+    """
+    mod = Module(binary_hash="pairfix", arch="x86_64", build="fixture-pairing")
+    ACQ = _func(mod, 0x9000, "EntryAcquire")
+    REL = _func(mod, 0x9100, "EntryRelease")
+    for i, nm in enumerate(("HolderRemove", "HolderUpdate", "HolderFinalize")):
+        h = _func(mod, 0x1000 + 0x100 * i, nm)
+        _call(mod, h, ACQ)
+        _call(mod, h, REL)
+    odd = _func(mod, 0x2000, "OddHolder")
+    if not odd_callerless:
+        # A holder with a known caller can be PROVEN unpaired. A callerless one
+        # cannot (it is a registered callback — see pairing.py), so the fixture
+        # makes that distinction explicit instead of leaving it to chance.
+        _call(mod, _func(mod, 0x2300, "OddHolderCaller"), odd)
+    _call(mod, odd, ACQ)
+    _call(mod, odd, ACQ)              # two acquire sites, no release
+    if with_delegate:
+        delegate = _func(mod, 0x2200, "FinalizeDelegate")
+        _call(mod, odd, delegate)
+        _call(mod, delegate, REL)
+    if odd_member_escapes:
+        mod.add_edge_loss(EdgeLossSite(
+            site=0x2040, func=odd, kind=EdgeLossKind.CODEPTR_ESCAPE,
+            known_targets=(), detail="queues a work item; callback unmodelled"))
+    return mod, ACQ, REL
